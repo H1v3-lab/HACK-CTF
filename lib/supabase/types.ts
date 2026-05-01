@@ -34,10 +34,9 @@ export interface Database {
           username?: string;
           avatar_url?: string | null;
           bio?: string | null;
-          score?: number;
-          rank?: number | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       challenges: {
         Row: {
@@ -81,6 +80,15 @@ export interface Database {
           is_active?: boolean;
           solves?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "challenges_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       categories: {
         Row: {
@@ -97,13 +105,13 @@ export interface Database {
           name?: string;
           color?: string;
         };
+        Relationships: [];
       };
       submissions: {
         Row: {
           id: string;
           user_id: string;
           challenge_id: string;
-          flag: string;
           is_correct: boolean;
           submitted_at: string;
         };
@@ -111,11 +119,11 @@ export interface Database {
           id?: string;
           user_id: string;
           challenge_id: string;
-          flag: string;
           is_correct: boolean;
           submitted_at?: string;
         };
-        Update: never;
+        Update: Record<string, never>;
+        Relationships: [];
       };
       badges: {
         Row: {
@@ -138,6 +146,7 @@ export interface Database {
           icon?: string | null;
           color?: string;
         };
+        Relationships: [];
       };
       user_badges: {
         Row: {
@@ -150,7 +159,8 @@ export interface Database {
           badge_id: string;
           earned_at?: string;
         };
-        Update: never;
+        Update: Record<string, never>;
+        Relationships: [];
       };
     };
     Views: {
@@ -164,12 +174,28 @@ export interface Database {
           last_solve: string | null;
           position: number;
         };
+        Relationships: [];
       };
       user_solves: {
         Row: {
           user_id: string;
           challenge_id: string;
         };
+        Relationships: [];
+      };
+    };
+    Functions: {
+      verify_flag: {
+        Args: { submitted_flag: string; stored_hash: string };
+        Returns: boolean;
+      };
+      increment_solves: {
+        Args: { challenge_id: string };
+        Returns: undefined;
+      };
+      increment_score: {
+        Args: { user_id: string; points: number };
+        Returns: undefined;
       };
     };
   };

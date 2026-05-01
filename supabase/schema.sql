@@ -11,7 +11,7 @@ create extension if not exists "pgcrypto";
 -- ============================================================
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
-  username    text unique not null,
+  username    text unique not null check (length(username) between 3 and 30),
   avatar_url  text,
   bio         text,
   score       integer not null default 0,
@@ -69,7 +69,6 @@ create table if not exists public.submissions (
   id           uuid primary key default uuid_generate_v4(),
   user_id      uuid not null references public.profiles(id) on delete cascade,
   challenge_id uuid not null references public.challenges(id) on delete cascade,
-  flag         text not null,
   is_correct   boolean not null,
   submitted_at timestamptz not null default now()
 );
@@ -155,9 +154,19 @@ alter table public.categories  enable row level security;
 alter table public.challenges  enable row level security;
 alter table public.submissions enable row level security;
 
--- profiles: public read, owner write
+-- profiles: public read, owner write (score/rank are server-only)
 create policy "profiles_select"  on public.profiles for select using (true);
-create policy "profiles_update"  on public.profiles for update using (auth.uid() = id);
+-- Users may only update editable fields (username, bio, avatar_url).
+-- The WITH CHECK prevents any client-initiated change to score or rank by
+-- verifying that the proposed new value matches the current persisted value.
+-- Security-definer RPCs (increment_score) bypass RLS entirely and are unaffected.
+create policy "profiles_update"  on public.profiles
+  for update
+  using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    AND score = (select p.score from public.profiles p where p.id = auth.uid())
+  );
 
 -- badges: public read
 create policy "badges_select"    on public.badges    for select using (true);

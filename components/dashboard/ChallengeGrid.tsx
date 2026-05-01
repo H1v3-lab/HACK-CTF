@@ -3,19 +3,7 @@
 import { useState } from "react";
 import ChallengeCard from "./ChallengeCard";
 import FlagSubmit from "./FlagSubmit";
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  difficulty: "easy" | "medium" | "hard" | "insane";
-  solves: number;
-  author: string | null;
-  hints?: unknown;
-  files?: unknown;
-  categories?: { name: string; color: string } | null;
-}
+import type { Challenge } from "@/lib/types";
 
 interface ChallengeGridProps {
   challenges: Challenge[];
@@ -24,7 +12,17 @@ interface ChallengeGridProps {
   onSolve: (challengeId: string, points: number) => void;
 }
 
-const CATEGORIES = ["All", "Web", "Cryptography", "Reverse", "Pwn", "Forensics", "OSINT", "Steganography", "Misc"];
+const CATEGORIES = [
+  "All",
+  "Web",
+  "Cryptography",
+  "Reverse",
+  "Pwn",
+  "Forensics",
+  "OSINT",
+  "Steganography",
+  "Misc",
+];
 const DIFFICULTIES = ["all", "easy", "medium", "hard", "insane"];
 
 export default function ChallengeGrid({

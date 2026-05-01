@@ -21,10 +21,13 @@ export default function GlitchText({
 
   useEffect(() => {
     if (!animate) return;
-    const interval = setInterval(() => {
-      setIsGlitching(true);
-      setTimeout(() => setIsGlitching(false), 400);
-    }, 4000 + Math.random() * 3000);
+    const interval = setInterval(
+      () => {
+        setIsGlitching(true);
+        setTimeout(() => setIsGlitching(false), 400);
+      },
+      4000 + Math.random() * 3000
+    );
     return () => clearInterval(interval);
   }, [animate]);
 

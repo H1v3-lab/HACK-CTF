@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 interface Badge {
   id: string;
   name: string;
@@ -34,9 +36,7 @@ export default function UserProfile({
   totalChallenges,
 }: UserProfileProps) {
   const completion =
-    totalChallenges > 0
-      ? Math.round((totalSolves / totalChallenges) * 100)
-      : 0;
+    totalChallenges > 0 ? Math.round((totalSolves / totalChallenges) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,16 +45,15 @@ export default function UserProfile({
         {/* Avatar */}
         <div className="shrink-0 w-20 h-20 rounded-sm border-2 border-[var(--cyber-cyan)] flex items-center justify-center bg-[var(--bg-secondary)] text-4xl overflow-hidden">
           {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={profile.avatar_url}
               alt={profile.username}
+              width={80}
+              height={80}
               className="w-full h-full object-cover"
             />
           ) : (
-            <span>
-              {profile.username.charAt(0).toUpperCase()}
-            </span>
+            <span>{profile.username.charAt(0).toUpperCase()}</span>
           )}
         </div>
 

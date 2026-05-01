@@ -6,19 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import GlitchText from "@/components/ui/GlitchText";
 import ChallengeGrid from "@/components/dashboard/ChallengeGrid";
 import TerminalText from "@/components/ui/TerminalText";
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  difficulty: "easy" | "medium" | "hard" | "insane";
-  solves: number;
-  author: string | null;
-  hints: unknown;
-  files: unknown;
-  categories: { name: string; color: string } | null;
-}
+import type { Challenge } from "@/lib/types";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,8 +21,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/auth/login");
+        return;
+      }
 
       setUserId(user.id);
 

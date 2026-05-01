@@ -4,8 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 
 export const metadata: Metadata = {
   title: "HACK-CTF | Cyber-Immersive Platform",
-  description:
-    "A futuristic Capture The Flag platform. Hack. Solve. Conquer.",
+  description: "A futuristic Capture The Flag platform. Hack. Solve. Conquer.",
 };
 
 export default function RootLayout({
