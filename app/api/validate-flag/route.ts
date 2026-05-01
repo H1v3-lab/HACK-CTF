@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
   // 5. Fetch challenge (only active ones)
   const { data: challengeData, error: challengeError } = await supabase
     .from("challenges")
-    .select("*")
+    .select("id, flag_hash, points, is_active")
     .eq("id", challengeId)
     .eq("is_active", true)
     .single();

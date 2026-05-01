@@ -34,7 +34,7 @@ export default function DashboardPage() {
       // Load profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("*")
+        .select("username, score")
         .eq("id", user.id)
         .single();
 
@@ -55,7 +55,7 @@ export default function DashboardPage() {
       // Load solved challenge ids
       const { data: solves } = await supabase
         .from("user_solves")
-        .select("*")
+        .select("challenge_id")
         .eq("user_id", user.id);
 
       if (solves) setSolvedIds(solves.map((s) => s.challenge_id));
