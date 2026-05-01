@@ -15,11 +15,7 @@ export default function HomePage() {
         HACK-CTF
       </GlitchText>
 
-      <GlitchText
-        as="p"
-        color="green"
-        className="text-lg tracking-widest mb-8"
-      >
+      <GlitchText as="p" color="green" className="text-lg tracking-widest mb-8">
         CYBER-IMMERSIVE PLATFORM
       </GlitchText>
 

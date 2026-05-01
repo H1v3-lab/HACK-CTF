@@ -1,17 +1,7 @@
 "use client";
 
 import CyberCard from "@/components/ui/CyberCard";
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  difficulty: "easy" | "medium" | "hard" | "insane";
-  solves: number;
-  author: string | null;
-  categories?: { name: string; color: string } | null;
-}
+import type { Challenge } from "@/lib/types";
 
 interface ChallengeCardProps {
   challenge: Challenge;
@@ -81,7 +71,9 @@ export default function ChallengeCard({
         <div className="flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
           <span>{challenge.solves} solves</span>
           {solved && (
-            <span className="text-[var(--cyber-green)] font-bold">✓ SOLVED</span>
+            <span className="text-[var(--cyber-green)] font-bold">
+              ✓ SOLVED
+            </span>
           )}
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 /**
  * POST /api/validate-flag
@@ -9,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
  * Validates a flag submission server-side.
  * - Hashes the submitted flag using the same algorithm as stored in the DB
  *   (bcrypt via Supabase's pgcrypto extension: crypt()).
- * - Records the submission (correct or not).
+ * - Records the submission (correct or not) without storing the raw flag.
  * - On success, increments the challenge solve count and the user's score.
  *
  * Returns:
@@ -18,6 +19,7 @@ import { createClient } from "@/lib/supabase/server";
  *   400 { error: string }          – bad request
  *   401 { error: "Unauthorized" }  – not authenticated
  *   409 { error: string }          – already solved
+ *   429 { error: string }          – rate limit exceeded
  *   500 { error: string }          – server error
  */
 export async function POST(request: NextRequest) {
@@ -54,7 +56,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  // 3. Prevent duplicate solves
+  // 3. Rate limiting (per user, 10 submissions per minute)
+  const rl = checkRateLimit(user.id);
+  if (!rl.allowed) {
+    const retryAfterSec = Math.ceil(rl.retryAfterMs / 1000);
+    return NextResponse.json(
+      { error: `Too many submissions. Retry after ${retryAfterSec}s.` },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSec) },
+      }
+    );
+  }
+
+  // 4. Prevent duplicate solves
   const { data: existingSolve } = await supabase
     .from("submissions")
     .select("id")
@@ -70,10 +85,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 4. Fetch challenge (only active ones)
+  // 5. Fetch challenge (only active ones)
   const { data: challengeData, error: challengeError } = await supabase
     .from("challenges")
-    .select("id, flag_hash, points, is_active")
+    .select("*")
     .eq("id", challengeId)
     .eq("is_active", true)
     .single();
@@ -85,37 +100,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const challenge = challengeData as {
-    id: string;
-    flag_hash: string;
-    points: number;
-    is_active: boolean;
-  };
-
-  // 5. Verify flag using pgcrypto (bcrypt) via a Postgres RPC
+  // 6. Verify flag using pgcrypto (bcrypt) via a Postgres RPC.
   //    The flag_hash is stored as: crypt(flag, gen_salt('bf'))
   //    We compare with: crypt(submitted_flag, stored_hash) = stored_hash
-  let isCorrect = false;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: verifyResult, error: verifyError } = await (supabase as any).rpc(
-      "verify_flag",
-      { submitted_flag: flag.trim(), stored_hash: challenge.flag_hash }
+  const { data: verifyResult, error: verifyError } = await supabase.rpc(
+    "verify_flag",
+    {
+      submitted_flag: flag.trim(),
+      stored_hash: challengeData.flag_hash,
+    }
+  );
+
+  if (verifyError) {
+    // Fail closed: never fall back to plaintext comparison
+    console.error("verify_flag RPC error:", verifyError.message);
+    return NextResponse.json(
+      { error: "Flag verification unavailable. Please try again." },
+      { status: 500 }
     );
-    if (verifyError) throw verifyError;
-    isCorrect = verifyResult === true;
-  } catch {
-    // Fallback: plain-text comparison (only when pgcrypto RPC is unavailable)
-    // In production, always use the bcrypt RPC.
-    isCorrect = flag.trim() === challenge.flag_hash;
   }
 
-  // 6. Record submission
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: insertError } = await (supabase as any).from("submissions").insert({
+  const isCorrect = verifyResult === true;
+
+  // 7. Record submission (flag value is NOT stored to avoid plaintext exposure)
+  const { error: insertError } = await supabase.from("submissions").insert({
     user_id: user.id,
     challenge_id: challengeId,
-    flag: flag.trim(),
     is_correct: isCorrect,
   });
 
@@ -126,17 +136,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 7. On correct flag: update score & solve count
+  // 8. On correct flag: update score & solve count via security-definer RPCs
   if (isCorrect) {
     await Promise.all([
-      // Increment challenge solve count
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).rpc("increment_solves", { challenge_id: challengeId }),
-      // Increment user score
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any).rpc("increment_score", {
+      supabase.rpc("increment_solves", { challenge_id: challengeId }),
+      supabase.rpc("increment_score", {
         user_id: user.id,
-        points: challenge.points,
+        points: challengeData.points,
       }),
     ]);
   }

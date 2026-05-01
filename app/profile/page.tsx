@@ -36,33 +36,30 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/auth/login"); return; }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/auth/login");
+        return;
+      }
 
       const [profileRes, badgesRes, solveRes, totalRes, rankRes] =
         await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, username, avatar_url, bio, score, created_at")
-            .eq("id", user.id)
-            .single(),
+          supabase.from("profiles").select("*").eq("id", user.id).single(),
           supabase
             .from("user_badges")
             .select("earned_at, badges(id, name, description, icon, color)")
             .eq("user_id", user.id),
           supabase
             .from("user_solves")
-            .select("challenge_id", { count: "exact", head: true })
+            .select("*", { count: "exact", head: true })
             .eq("user_id", user.id),
           supabase
             .from("challenges")
-            .select("id", { count: "exact", head: true })
+            .select("*", { count: "exact", head: true })
             .eq("is_active", true),
-          supabase
-            .from("scoreboard")
-            .select("position")
-            .eq("id", user.id)
-            .single(),
+          supabase.from("scoreboard").select("*").eq("id", user.id).single(),
         ]);
 
       if (profileRes.data) setProfile(profileRes.data);
@@ -72,7 +69,13 @@ export default function ProfilePage() {
           badgesRes.data
             .filter((b) => b.badges)
             .map((b) => {
-              const badge = b.badges as unknown as { id: string; name: string; description: string | null; icon: string | null; color: string };
+              const badge = b.badges as unknown as {
+                id: string;
+                name: string;
+                description: string | null;
+                icon: string | null;
+                color: string;
+              };
               return {
                 ...badge,
                 earned_at: b.earned_at,

@@ -22,7 +22,10 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       setError(error.message);
@@ -38,7 +41,11 @@ export default function LoginPage() {
       <div className="cyber-card rounded-sm w-full max-w-sm p-8 neon-box-cyan fade-in-up">
         {/* Header */}
         <div className="mb-8 text-center">
-          <GlitchText as="h1" color="cyan" className="text-3xl font-bold tracking-widest mb-1">
+          <GlitchText
+            as="h1"
+            color="cyan"
+            className="text-3xl font-bold tracking-widest mb-1"
+          >
             LOGIN
           </GlitchText>
           <p className="text-xs text-[var(--text-muted)] tracking-widest">

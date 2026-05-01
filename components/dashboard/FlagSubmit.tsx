@@ -4,19 +4,7 @@ import { useState, useRef } from "react";
 import CyberInput from "@/components/ui/CyberInput";
 import CyberButton from "@/components/ui/CyberButton";
 import GlitchText from "@/components/ui/GlitchText";
-
-interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  difficulty: string;
-  solves: number;
-  author: string | null;
-  hints?: unknown;
-  files?: unknown;
-  categories?: { name: string; color: string } | null;
-}
+import type { Challenge } from "@/lib/types";
 
 interface FlagSubmitProps {
   challenge: Challenge;
@@ -36,7 +24,10 @@ export default function FlagSubmit({
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState<LogLine[]>([
     { type: "info", text: `Challenge loaded: ${challenge.title}` },
-    { type: "info", text: `Points: ${challenge.points} | Difficulty: ${challenge.difficulty.toUpperCase()}` },
+    {
+      type: "info",
+      text: `Points: ${challenge.points} | Difficulty: ${challenge.difficulty.toUpperCase()}`,
+    },
     { type: "warn", text: "Enter flag below to validate..." },
   ]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +69,9 @@ export default function FlagSubmit({
     }
   };
 
-  const hints = Array.isArray(challenge.hints) ? challenge.hints as string[] : [];
+  const hints = Array.isArray(challenge.hints)
+    ? (challenge.hints as string[])
+    : [];
   const files = Array.isArray(challenge.files)
     ? (challenge.files as { name: string; url: string }[])
     : [];
@@ -108,7 +101,11 @@ export default function FlagSubmit({
       <div className="relative cyber-card rounded-sm w-full max-w-xl neon-box-cyan fade-in-up">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-color)] p-4">
-          <GlitchText as="h2" color="cyan" className="text-base font-bold tracking-widest">
+          <GlitchText
+            as="h2"
+            color="cyan"
+            className="text-base font-bold tracking-widest"
+          >
             {challenge.title}
           </GlitchText>
           <button

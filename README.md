@@ -1,19 +1,19 @@
 # HACK-CTF — Cyber-Immersive CTF Platform
 
-A full-stack, futuristic Capture The Flag platform built with **Next.js 15**, **Tailwind CSS v4**, and **Supabase**.
+A full-stack, futuristic Capture The Flag platform built with **Next.js 16**, **Tailwind CSS v4**, and **Supabase**.
 
 ---
 
 ## ✨ Features
 
-| Feature | Description |
-|---|---|
-| 🎯 Challenge Dashboard | Filterable grid of challenge cards. Solved cards turn neon-green. |
+| Feature                | Description                                                         |
+| ---------------------- | ------------------------------------------------------------------- |
+| 🎯 Challenge Dashboard | Filterable grid of challenge cards. Solved cards turn neon-green.   |
 | 🖥️ Terminal Flag Input | Sci-Fi styled flag submission with server-side bcrypt verification. |
-| 📊 Live Scoreboard | Real-time rankings powered by Supabase Realtime. |
-| 👤 Player Profile | Points, rank, completion bar, and earned badges. |
-| 🔐 Auth | Email/password auth via Supabase Auth. |
-| 🌌 Futuristic UI | Neon glow, scanlines, glitch effects, hex-grid background. |
+| 📊 Live Scoreboard     | Real-time rankings powered by Supabase Realtime.                    |
+| 👤 Player Profile      | Points, rank, completion bar, and earned badges.                    |
+| 🔐 Auth                | Email/password auth via Supabase Auth.                              |
+| 🌌 Futuristic UI       | Neon glow, scanlines, glitch effects, hex-grid background.          |
 
 ---
 
@@ -38,7 +38,9 @@ A full-stack, futuristic Capture The Flag platform built with **Next.js 15**, **
 │   ├── scoreboard/             # ScoreboardTable
 │   └── profile/                # UserProfile
 ├── lib/supabase/               # client.ts, server.ts, types.ts
-├── middleware.ts               # Auth-gated route protection
+├── lib/types.ts                # Shared domain types (Challenge, …)
+├── lib/ratelimit.ts            # In-process rate limiter (see .env.example for Upstash)
+├── proxy.ts                    # Auth-gated route protection (Next.js 16 proxy)
 ├── supabase/
 │   └── schema.sql              # Full DB schema + seed data
 └── .env.example                # Environment variable template
@@ -60,7 +62,7 @@ npm install
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor** and run the contents of `supabase/schema.sql`.
-3. Copy your **Project URL** and **anon key** from *Settings → API*.
+3. Copy your **Project URL** and **anon key** from _Settings → API_.
 
 ### 3 — Environment Variables
 
@@ -79,12 +81,14 @@ npm run dev
 ### 5 — Deploy
 
 **Vercel** (recommended):
+
 ```bash
 npx vercel --prod
 # Set env vars in Vercel dashboard
 ```
 
 **GitHub Pages** (static export):
+
 ```bash
 # Add to next.config.ts: output: 'export'
 npm run build
@@ -99,29 +103,29 @@ See [`supabase/schema.sql`](supabase/schema.sql) for the full schema.
 
 ### Tables
 
-| Table | Description |
-|---|---|
-| `profiles` | Extends `auth.users` — username, score, rank |
-| `challenges` | CTF challenges with bcrypt-hashed flags |
-| `categories` | Challenge categories (Web, Crypto, …) |
-| `submissions` | All flag attempts (correct & incorrect) |
-| `badges` | Achievement definitions |
-| `user_badges` | Junction: which user earned which badge |
+| Table         | Description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| `profiles`    | Extends `auth.users` — username, score, rank                   |
+| `challenges`  | CTF challenges with bcrypt-hashed flags                        |
+| `categories`  | Challenge categories (Web, Crypto, …)                          |
+| `submissions` | All flag attempts (correct & incorrect, flag value not stored) |
+| `badges`      | Achievement definitions                                        |
+| `user_badges` | Junction: which user earned which badge                        |
 
 ### Views
 
-| View | Description |
-|---|---|
-| `scoreboard` | Ranked players with solve count and last solve time |
-| `user_solves` | Solved challenge IDs per user |
+| View          | Description                                         |
+| ------------- | --------------------------------------------------- |
+| `scoreboard`  | Ranked players with solve count and last solve time |
+| `user_solves` | Solved challenge IDs per user                       |
 
 ### RPC Functions
 
-| Function | Description |
-|---|---|
+| Function                              | Description                    |
+| ------------------------------------- | ------------------------------ |
 | `verify_flag(submitted, stored_hash)` | bcrypt comparison via pgcrypto |
-| `increment_solves(challenge_id)` | Atomic solve counter increment |
-| `increment_score(user_id, points)` | Atomic score increment |
+| `increment_solves(challenge_id)`      | Atomic solve counter increment |
+| `increment_score(user_id, points)`    | Atomic score increment         |
 
 ---
 
@@ -140,12 +144,12 @@ Insert the resulting hash into `challenges.flag_hash`.
 
 ## 🎨 Design System
 
-| Token | Value | Usage |
-|---|---|---|
-| `--bg-primary` | `#000000` | Page background |
-| `--cyber-cyan` | `#00f3ff` | Primary accent, borders |
-| `--cyber-green` | `#00ff41` | Solved state, success |
-| `--cyber-pink` | `#ff00ff` | Glitch overlay, Insane difficulty |
+| Token           | Value     | Usage                             |
+| --------------- | --------- | --------------------------------- |
+| `--bg-primary`  | `#000000` | Page background                   |
+| `--cyber-cyan`  | `#00f3ff` | Primary accent, borders           |
+| `--cyber-green` | `#00ff41` | Solved state, success             |
+| `--cyber-pink`  | `#ff00ff` | Glitch overlay, Insane difficulty |
 
 CSS utility classes: `.neon-cyan`, `.neon-green`, `.neon-box-cyan`, `.cyber-card`, `.cyber-btn`, `.glitch`, `.scanlines`, `.hex-grid-bg`, `.terminal-input`
 
@@ -155,12 +159,12 @@ CSS utility classes: `.neon-cyan`, `.neon-green`, `.neon-box-cyan`, `.cyber-card
 
 Sound effect hooks are available in `public/sounds/`. Drop `.mp3` / `.ogg` files there:
 
-| File | Trigger |
-|---|---|
-| `click.mp3` | Button press |
-| `correct.mp3` | Correct flag |
-| `wrong.mp3` | Incorrect flag |
-| `unlock.mp3` | Badge earned |
+| File          | Trigger        |
+| ------------- | -------------- |
+| `click.mp3`   | Button press   |
+| `correct.mp3` | Correct flag   |
+| `wrong.mp3`   | Incorrect flag |
+| `unlock.mp3`  | Badge earned   |
 
 ---
 

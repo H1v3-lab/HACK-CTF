@@ -47,7 +47,11 @@ export default function RegisterPage() {
     <div className="flex-1 flex items-center justify-center px-4 py-16">
       <div className="cyber-card rounded-sm w-full max-w-sm p-8 fade-in-up">
         <div className="mb-8 text-center">
-          <GlitchText as="h1" color="green" className="text-3xl font-bold tracking-widest mb-1">
+          <GlitchText
+            as="h1"
+            color="green"
+            className="text-3xl font-bold tracking-widest mb-1"
+          >
             REGISTER
           </GlitchText>
           <p className="text-xs text-[var(--text-muted)] tracking-widest">
