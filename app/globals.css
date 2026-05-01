@@ -1,0 +1,385 @@
+@import "tailwindcss";
+
+/* ============================================================
+   CYBER THEME VARIABLES
+   ============================================================ */
+:root {
+  --bg-primary: #000000;
+  --bg-secondary: #010101;
+  --bg-card: #050d13;
+  --cyber-cyan: #00f3ff;
+  --cyber-green: #00ff41;
+  --cyber-pink: #ff00ff;
+  --cyber-orange: #ff6600;
+  --text-primary: #e0f7ff;
+  --text-muted: #4a7a8a;
+  --border-color: #0d3a4a;
+  --border-glow: rgba(0, 243, 255, 0.4);
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Courier New", Courier, monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   SCROLLBAR (Webkit)
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--cyber-cyan);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   SCANLINES OVERLAY
+   ============================================================ */
+.scanlines::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+/* ============================================================
+   NEON GLOW UTILITIES
+   ============================================================ */
+.neon-cyan {
+  text-shadow:
+    0 0 6px var(--cyber-cyan),
+    0 0 20px var(--cyber-cyan),
+    0 0 40px rgba(0, 243, 255, 0.5);
+}
+
+.neon-green {
+  text-shadow:
+    0 0 6px var(--cyber-green),
+    0 0 20px var(--cyber-green),
+    0 0 40px rgba(0, 255, 65, 0.5);
+}
+
+.neon-box-cyan {
+  box-shadow:
+    0 0 8px rgba(0, 243, 255, 0.6),
+    0 0 20px rgba(0, 243, 255, 0.3),
+    inset 0 0 8px rgba(0, 243, 255, 0.05);
+}
+
+.neon-box-green {
+  box-shadow:
+    0 0 8px rgba(0, 255, 65, 0.6),
+    0 0 20px rgba(0, 255, 65, 0.3),
+    inset 0 0 8px rgba(0, 255, 65, 0.05);
+}
+
+/* ============================================================
+   CYBER CARD
+   ============================================================ */
+.cyber-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  position: relative;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.cyber-card::before,
+.cyber-card::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--cyber-cyan);
+  border-style: solid;
+}
+
+.cyber-card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.cyber-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.cyber-card:hover {
+  border-color: var(--cyber-cyan);
+  box-shadow:
+    0 0 12px rgba(0, 243, 255, 0.4),
+    inset 0 0 12px rgba(0, 243, 255, 0.03);
+}
+
+.cyber-card.solved {
+  border-color: var(--cyber-green);
+}
+
+.cyber-card.solved::before,
+.cyber-card.solved::after {
+  border-color: var(--cyber-green);
+}
+
+.cyber-card.solved:hover {
+  border-color: var(--cyber-green);
+  box-shadow:
+    0 0 12px rgba(0, 255, 65, 0.4),
+    inset 0 0 12px rgba(0, 255, 65, 0.03);
+}
+
+/* ============================================================
+   GLITCH EFFECT
+   ============================================================ */
+@keyframes glitch-1 {
+  0%,
+  100% {
+    clip-path: inset(0 0 98% 0);
+    transform: translate(-2px, 0);
+  }
+  20% {
+    clip-path: inset(30% 0 50% 0);
+    transform: translate(2px, 0);
+  }
+  40% {
+    clip-path: inset(70% 0 5% 0);
+    transform: translate(-1px, 0);
+  }
+  60% {
+    clip-path: inset(10% 0 80% 0);
+    transform: translate(3px, 0);
+  }
+  80% {
+    clip-path: inset(50% 0 30% 0);
+    transform: translate(-3px, 0);
+  }
+}
+
+@keyframes glitch-2 {
+  0%,
+  100% {
+    clip-path: inset(90% 0 2% 0);
+    transform: translate(2px, 0);
+  }
+  20% {
+    clip-path: inset(5% 0 80% 0);
+    transform: translate(-2px, 0);
+  }
+  40% {
+    clip-path: inset(60% 0 20% 0);
+    transform: translate(1px, 0);
+  }
+  60% {
+    clip-path: inset(20% 0 65% 0);
+    transform: translate(-3px, 0);
+  }
+  80% {
+    clip-path: inset(75% 0 10% 0);
+    transform: translate(3px, 0);
+  }
+}
+
+.glitch {
+  position: relative;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.glitch:hover::before {
+  color: var(--cyber-cyan);
+  opacity: 0.8;
+  animation: glitch-1 0.4s infinite linear;
+}
+
+.glitch:hover::after {
+  color: var(--cyber-pink);
+  opacity: 0.8;
+  animation: glitch-2 0.4s infinite linear;
+}
+
+/* ============================================================
+   TERMINAL INPUT
+   ============================================================ */
+.terminal-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--cyber-cyan);
+  color: var(--cyber-green);
+  caret-color: var(--cyber-green);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 1rem;
+  width: 100%;
+  outline: none;
+  padding: 4px 0;
+  letter-spacing: 0.05em;
+}
+
+.terminal-input::placeholder {
+  color: var(--text-muted);
+}
+
+.terminal-input:focus {
+  border-bottom-color: var(--cyber-green);
+  box-shadow: 0 2px 8px rgba(0, 255, 65, 0.2);
+}
+
+/* ============================================================
+   CYBER BUTTON
+   ============================================================ */
+.cyber-btn {
+  position: relative;
+  border: 1px solid var(--cyber-cyan);
+  background: transparent;
+  color: var(--cyber-cyan);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: color 0.2s, background 0.2s;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+.cyber-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--cyber-cyan);
+  transform: translateX(-101%);
+  transition: transform 0.25s ease;
+  z-index: 0;
+}
+
+.cyber-btn:hover::before {
+  transform: translateX(0);
+}
+
+.cyber-btn:hover {
+  color: #000;
+}
+
+.cyber-btn span {
+  position: relative;
+  z-index: 1;
+}
+
+.cyber-btn-green {
+  border-color: var(--cyber-green);
+  color: var(--cyber-green);
+}
+
+.cyber-btn-green::before {
+  background: var(--cyber-green);
+}
+
+/* ============================================================
+   TYPING CURSOR
+   ============================================================ */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor::after {
+  content: "_";
+  animation: blink 1s step-end infinite;
+  color: var(--cyber-green);
+}
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.cyber-progress {
+  background: var(--border-color);
+  height: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cyber-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyber-cyan), var(--cyber-green));
+  transition: width 1s ease;
+}
+
+/* ============================================================
+   PAGE TRANSITIONS
+   ============================================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+/* ============================================================
+   GRID HEX BACKGROUND
+   ============================================================ */
+.hex-grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ============================================================
+   DIFFICULTY BADGE
+   ============================================================ */
+.badge-easy    { color: #00ff41; border-color: #00ff41; }
+.badge-medium  { color: #ffff00; border-color: #ffff00; }
+.badge-hard    { color: #ff6600; border-color: #ff6600; }
+.badge-insane  { color: #ff00ff; border-color: #ff00ff; }
