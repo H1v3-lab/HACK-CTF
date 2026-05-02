@@ -7,7 +7,7 @@ const supabaseUrl =
 const supabaseKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-key";
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
@@ -32,7 +32,11 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const protectedRoutes = ["/dashboard", "/profile", "/scoreboard"];
+
+  // Routes qui nécessitent une session
+  const protectedRoutes = ["/dashboard", "/profile"];
+
+  // Routes d'auth (si déjà connecté, on redirige)
   const authRoutes = ["/auth/login", "/auth/register"];
 
   if (!user && protectedRoutes.some((r) => pathname.startsWith(r))) {
