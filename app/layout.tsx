@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "HACK-CTF | Cyber-Immersive Platform",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="scanlines hex-grid-bg min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
