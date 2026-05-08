@@ -101,7 +101,7 @@ create table if not exists public.challenges (
 );
 
 -- ============================================================
--- SUBMISSIONS
+-- SUBMISSIONS (attempt logs; mainly incorrect)
 -- ============================================================
 create table if not exists public.submissions (
   id           uuid primary key default uuid_generate_v4(),
@@ -109,19 +109,31 @@ create table if not exists public.submissions (
   team_id      uuid references public.teams(id) on delete set null,
   challenge_id uuid not null references public.challenges(id) on delete cascade,
   is_correct   boolean not null,
-  points_awarded integer,
   submitted_at timestamptz not null default now()
 );
 
--- Only one successful solve per user per challenge
-create unique index if not exists uq_user_challenge_solved
-  on public.submissions (user_id, challenge_id)
-  where is_correct = true;
+-- ============================================================
+-- SOLVES (normalized)
+-- ============================================================
+create table if not exists public.user_solves (
+  id           uuid primary key default uuid_generate_v4(),
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  challenge_id uuid not null references public.challenges(id) on delete cascade,
+  points_awarded integer not null,
+  solved_at    timestamptz not null default now(),
+  unique (user_id, challenge_id)
+);
 
--- Team cannot solve same challenge multiple times (optional but typical)
-create unique index if not exists uq_team_challenge_solved
-  on public.submissions (team_id, challenge_id)
-  where is_correct = true and team_id is not null;
+create table if not exists public.team_solves (
+  id           uuid primary key default uuid_generate_v4(),
+  team_id      uuid not null references public.teams(id) on delete cascade,
+  challenge_id uuid not null references public.challenges(id) on delete cascade,
+  solved_by    uuid references public.profiles(id) on delete set null,
+  points_awarded integer not null,
+  blood_rank   integer,
+  solved_at    timestamptz not null default now(),
+  unique (team_id, challenge_id)
+);
 
 -- ============================================================
 -- PUBLIC VIEWS (NO flag_hash)
@@ -150,15 +162,15 @@ select
   p.id,
   p.username,
   p.avatar_url,
-  p.score,
-  count(s.id) filter (where s.is_correct)::int as solves,
-  max(s.submitted_at) filter (where s.is_correct) as last_solve,
+  coalesce(sum(us.points_awarded), 0)::int as score,
+  count(us.id)::int as solves,
+  max(us.solved_at) as last_solve,
   rank() over (
-    order by p.score desc,
-    max(s.submitted_at) filter (where s.is_correct) asc
+    order by coalesce(sum(us.points_awarded),0) desc,
+    max(us.solved_at) asc
   ) as position
 from public.profiles p
-left join public.submissions s on s.user_id = p.id
+left join public.user_solves us on us.user_id = p.id
 group by p.id;
 
 -- Team scoreboard (public)
@@ -166,26 +178,25 @@ create or replace view public.team_scoreboard_public as
 select
   t.id,
   t.name,
-  coalesce(sum(s.points_awarded), 0)::int as score,
-  count(s.id) filter (where s.is_correct)::int as solves,
-  max(s.submitted_at) filter (where s.is_correct) as last_solve,
+  coalesce(sum(ts.points_awarded), 0)::int as score,
+  count(ts.id)::int as solves,
+  max(ts.solved_at) as last_solve,
   rank() over (
-    order by coalesce(sum(s.points_awarded),0) desc,
-    max(s.submitted_at) filter (where s.is_correct) asc
+    order by coalesce(sum(ts.points_awarded),0) desc,
+    max(ts.solved_at) asc
   ) as position
 from public.teams t
-left join public.submissions s on s.team_id = t.id and s.is_correct = true
+left join public.team_solves ts on ts.team_id = t.id
 where t.deleted_at is null
 group by t.id;
 
--- Per-user solved challenges lookup (must be secure)
-create or replace view public.user_solves
+-- Per-user solved challenges lookup
+create or replace view public.user_solves_view
 with (security_invoker = true) as
 select
-  s.user_id,
-  s.challenge_id
-from public.submissions s
-where s.is_correct = true;
+  us.user_id,
+  us.challenge_id
+from public.user_solves us;
 
 -- ============================================================
 -- FUNCTIONS & TRIGGERS
@@ -250,21 +261,21 @@ $$;
 
 grant execute on function public.is_admin() to authenticated;
 
--- Verify a bcrypt-hashed flag
+-- Verify a bcrypt-hashed flag (pgcrypto lives in schema 'extensions' in Supabase)
 create or replace function public.verify_flag(submitted_flag text, stored_hash text)
 returns boolean
 language sql
 security definer
 set search_path = public, pg_temp
 as $$
-  select crypt(submitted_flag, stored_hash) = stored_hash;
+  select extensions.crypt(submitted_flag, stored_hash) = stored_hash;
 $$;
 
 -- Dynamic scoring:
 --  - base points diminish as more TEAMS solve the challenge
 --  - first/second/third blood bonus for teams: +100/+50/+25
-create or replace function public.compute_team_points(p_challenge_id uuid, p_team_id uuid)
-returns integer
+create or replace function public.compute_team_points(p_challenge_id uuid)
+returns table(points integer, blood_rank integer)
 language plpgsql
 security definer
 set search_path = public, pg_temp
@@ -276,7 +287,6 @@ declare
   bonus int := 0;
   diminished int;
 begin
-  -- Get base points from challenge
   select c.points into base_points
   from public.challenges c
   where c.id = p_challenge_id and c.is_active = true and c.deleted_at is null;
@@ -285,17 +295,13 @@ begin
     raise exception 'Challenge not found' using errcode = '22023';
   end if;
 
-  -- How many distinct teams already have a correct solve for this challenge?
   select count(*) into team_solves_before
   from (
-    select distinct s.team_id
-    from public.submissions s
-    where s.challenge_id = p_challenge_id
-      and s.is_correct = true
-      and s.team_id is not null
+    select distinct ts.team_id
+    from public.team_solves ts
+    where ts.challenge_id = p_challenge_id
   ) t;
 
-  -- Rank for blood bonus = team_solves_before + 1
   solve_rank := team_solves_before + 1;
   if solve_rank = 1 then
     bonus := 100;
@@ -305,33 +311,30 @@ begin
     bonus := 25;
   end if;
 
-  -- Diminish: base / (1 + floor(team_solves_before/5)) as a simple curve
-  -- You can tune the curve later.
   diminished := greatest(1, (base_points / (1 + (team_solves_before / 5))));
 
-  return diminished + bonus;
+  return query select diminished + bonus, solve_rank;
 end;
 $$;
 
-grant execute on function public.compute_team_points(uuid, uuid) to authenticated;
+grant execute on function public.compute_team_points(uuid) to authenticated;
 
--- Atomic submit_flag: user solve (for individual scoreboard) and team solve (team points)
+-- Atomic submit_flag
 create or replace function public.submit_flag(challenge_id uuid, submitted_flag text)
-returns table (correct boolean, already_solved boolean, points_awarded integer)
+returns table (correct boolean, already_solved boolean, team_points_awarded integer)
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
   uid uuid;
+  my_team uuid;
   ch record;
   ok boolean;
-  inserted_user_id uuid;
-  inserted_team_id uuid;
-  my_team uuid;
-  team_points int;
-  team_inserted boolean := false;
   user_inserted boolean := false;
+  team_inserted boolean := false;
+  team_points int;
+  team_rank int;
 begin
   uid := auth.uid();
   if uid is null then
@@ -350,48 +353,45 @@ begin
   ok := public.verify_flag(trim(submitted_flag), ch.flag_hash);
 
   if ok is false then
-    insert into public.submissions(user_id, challenge_id, is_correct)
-    values (uid, challenge_id, false);
-
+    insert into public.submissions(user_id, challenge_id, team_id, is_correct)
+    values (uid, challenge_id, (select team_id from public.team_members where user_id = uid), false);
     return query select false, false, null;
     return;
   end if;
 
-  -- Insert user solve (one per user)
-  insert into public.submissions(user_id, challenge_id, is_correct)
-  values (uid, challenge_id, true)
-  on conflict do nothing
-  returning id into inserted_user_id;
-
-  if inserted_user_id is not null then
+  -- Individual solve
+  begin
+    insert into public.user_solves(user_id, challenge_id, points_awarded)
+    values (uid, challenge_id, ch.points);
     user_inserted := true;
-    -- Increment individual profile score by base challenge points
+
     update public.profiles
     set score = score + ch.points
     where id = uid;
 
-    -- Increment challenge solves counter (total solves)
     update public.challenges
     set solves = solves + 1
     where id = challenge_id;
-  end if;
+  exception when unique_violation then
+    user_inserted := false;
+  end;
 
-  -- Team solve if user is in a team
+  -- Team solve
   select tm.team_id into my_team
   from public.team_members tm
   where tm.user_id = uid;
 
   if my_team is not null then
-    team_points := public.compute_team_points(challenge_id, my_team);
+    select points, blood_rank into team_points, team_rank
+    from public.compute_team_points(challenge_id);
 
-    insert into public.submissions(user_id, team_id, challenge_id, is_correct, points_awarded)
-    values (uid, my_team, challenge_id, true, team_points)
-    on conflict do nothing
-    returning id into inserted_team_id;
-
-    if inserted_team_id is not null then
+    begin
+      insert into public.team_solves(team_id, challenge_id, solved_by, points_awarded, blood_rank)
+      values (my_team, challenge_id, uid, team_points, team_rank);
       team_inserted := true;
-    end if;
+    exception when unique_violation then
+      team_inserted := false;
+    end;
   end if;
 
   if user_inserted is false then
@@ -417,8 +417,9 @@ alter table public.team_invites enable row level security;
 alter table public.categories   enable row level security;
 alter table public.challenges   enable row level security;
 alter table public.submissions  enable row level security;
+alter table public.user_solves  enable row level security;
+alter table public.team_solves  enable row level security;
 
--- profiles: public read, owner write (score/rank are server-only)
 create policy "profiles_select" on public.profiles for select using (true);
 create policy "profiles_update" on public.profiles
   for update
@@ -428,35 +429,40 @@ create policy "profiles_update" on public.profiles
     AND score = (select p.score from public.profiles p where p.id = auth.uid())
   );
 
--- teams: public read (basic), members read their team, captains/admin manage
 create policy "teams_select_public" on public.teams for select using (deleted_at is null);
 create policy "team_members_select" on public.team_members for select using (true);
 
--- categories are public read via client
 create policy "categories_select" on public.categories for select using (true);
 
--- challenges: PUBLIC MUST NOT SELECT DIRECTLY (flag_hash). Use challenges_public view.
--- Admin can manage challenges.
 create policy "challenges_admin_all" on public.challenges
   for all
   using (public.is_admin())
   with check (public.is_admin());
 
--- submissions: users insert/read their own rows.
 create policy "submissions_insert" on public.submissions
   for insert with check (auth.uid() = user_id);
 create policy "submissions_select" on public.submissions
   for select using (auth.uid() = user_id);
 
--- badges public read
+create policy "user_solves_select" on public.user_solves
+  for select using (auth.uid() = user_id);
+
+create policy "team_solves_select_team" on public.team_solves
+  for select using (
+    public.is_admin()
+    OR exists (
+      select 1 from public.team_members tm
+      where tm.team_id = team_solves.team_id and tm.user_id = auth.uid()
+    )
+  );
+
 create policy "badges_select" on public.badges for select using (true);
 create policy "user_badges_select" on public.user_badges for select using (true);
 
--- Grants for public views
 grant select on public.challenges_public to anon, authenticated;
 grant select on public.scoreboard_public to anon, authenticated;
 grant select on public.team_scoreboard_public to anon, authenticated;
-grant select on public.user_solves to authenticated;
+grant select on public.user_solves_view to authenticated;
 
 -- ============================================================
 -- SEED DATA
