@@ -7,7 +7,7 @@ const supabaseUrl =
 const supabaseKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-key";
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
