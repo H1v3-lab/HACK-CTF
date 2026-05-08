@@ -59,7 +59,7 @@ export default function ProfilePage() {
             .from("challenges")
             .select("*", { count: "exact", head: true })
             .eq("is_active", true),
-          supabase.from("scoreboard").select("*").eq("id", user.id).single(),
+          supabase.from("scoreboard_public").select("*").eq("id", user.id).single(),
         ]);
 
       if (profileRes.data) setProfile(profileRes.data);
