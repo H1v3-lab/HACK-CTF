@@ -28,7 +28,8 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      // Avoid account enumeration
+      setError("Invalid email or password.");
     } else {
       router.push("/dashboard");
       router.refresh();
@@ -39,7 +40,6 @@ export default function LoginPage() {
   return (
     <div className="flex-1 flex items-center justify-center px-4 py-16">
       <div className="cyber-card rounded-sm w-full max-w-sm p-8 neon-box-cyan fade-in-up">
-        {/* Header */}
         <div className="mb-8 text-center">
           <GlitchText
             as="h1"

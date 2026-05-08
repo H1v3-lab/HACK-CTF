@@ -16,9 +16,7 @@ export async function middleware(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value)
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options)
@@ -33,10 +31,10 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Routes qui nécessitent une session
-  const protectedRoutes = ["/dashboard", "/profile"];
+  // Routes which require a session
+  const protectedRoutes = ["/dashboard", "/profile", "/admin"];
 
-  // Routes d'auth (si déjà connecté, on redirige)
+  // Auth routes (if already connected, redirect)
   const authRoutes = ["/auth/login", "/auth/register"];
 
   if (!user && protectedRoutes.some((r) => pathname.startsWith(r))) {

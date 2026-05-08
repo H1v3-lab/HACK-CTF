@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useMemo } from "react";
 
 interface ScoreboardEntry {
   id: string;
@@ -14,51 +13,17 @@ interface ScoreboardEntry {
 }
 
 interface ScoreboardTableProps {
+  entries: ScoreboardEntry[];
+  loading: boolean;
   currentUserId?: string;
 }
 
 export default function ScoreboardTable({
+  entries,
+  loading,
   currentUserId,
 }: ScoreboardTableProps) {
-  const [entries, setEntries] = useState<ScoreboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const supabase = createClient();
-
-  const fetchScoreboard = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("scoreboard")
-      .select("*")
-      .order("position", { ascending: true })
-      .limit(100);
-
-    if (!error && data) {
-      setEntries(data as ScoreboardEntry[]);
-      setLastUpdate(new Date());
-    }
-    setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchScoreboard();
-
-    // Real-time subscription on submissions table
-    const channel = supabase
-      .channel("scoreboard-updates")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "submissions" },
-        () => {
-          fetchScoreboard();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchScoreboard, supabase]);
+  const lastUpdate = useMemo(() => new Date(), []);
 
   const medal = (pos: number) => {
     if (pos === 1) return "🥇";
@@ -69,17 +34,14 @@ export default function ScoreboardTable({
 
   return (
     <div className="cyber-card rounded-sm overflow-hidden">
-      {/* Table header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)] bg-[rgba(0,243,255,0.03)]">
         <h2 className="text-xs tracking-widest text-[var(--cyber-cyan)] font-bold">
           SCOREBOARD
         </h2>
-        {lastUpdate && (
-          <span className="text-[10px] text-[var(--text-muted)]">
-            Updated {lastUpdate.toLocaleTimeString()}
-            <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-[var(--cyber-green)] animate-pulse" />
-          </span>
-        )}
+        <span className="text-[10px] text-[var(--text-muted)]">
+          Updated {lastUpdate.toLocaleTimeString()}
+          <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-[var(--cyber-green)] animate-pulse" />
+        </span>
       </div>
 
       {loading ? (
@@ -114,9 +76,7 @@ export default function ScoreboardTable({
                 >
                   <td className="px-4 py-2.5 font-mono">
                     {medal(entry.position) ?? (
-                      <span className="text-[var(--text-muted)]">
-                        #{entry.position}
-                      </span>
+                      <span className="text-[var(--text-muted)]">#{entry.position}</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 font-bold tracking-wide">
