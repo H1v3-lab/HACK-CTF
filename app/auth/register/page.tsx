@@ -33,7 +33,8 @@ export default function RegisterPage() {
     });
 
     if (error) {
-      setError(error.message);
+      // Avoid account enumeration
+      setError("Registration failed. Please try again.");
     } else {
       setSuccess(true);
       setTimeout(() => {
@@ -79,7 +80,7 @@ export default function RegisterPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               minLength={3}
-              maxLength={20}
+              maxLength={30}
               autoFocus
             />
             <CyberInput

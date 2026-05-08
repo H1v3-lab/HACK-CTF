@@ -1,42 +1,27 @@
-/**
- * Simple in-memory rate limiter for /api/validate-flag.
- *
- * In production with multiple instances, replace this with Upstash Redis:
- *   @upstash/redis  + @upstash/ratelimit
- * and set UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN in your env.
- *
- * This implementation is intentionally zero-dependency and works for
- * single-instance deployments (dev + simple VPS / single-container).
- */
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
+interface Result {
+  allowed: boolean;
+  retryAfterMs: number;
+}
+
+// In-memory fallback (dev only)
 interface BucketEntry {
   count: number;
   resetAt: number;
 }
-
-// key → { count, resetAt }
 const store = new Map<string, BucketEntry>();
-
-/** Maximum flag submissions per window per user. */
 const MAX_REQUESTS = 10;
-/** Window length in milliseconds. */
-const WINDOW_MS = 60_000; // 1 minute
+const WINDOW_MS = 60_000;
 
-/**
- * Check rate-limit for a given key (e.g. `userId`).
- * Returns `{ allowed: true }` when the request is within limits,
- * or `{ allowed: false, retryAfterMs }` when the limit is exceeded.
- */
-export function checkRateLimit(
-  key: string
-): { allowed: true } | { allowed: false; retryAfterMs: number } {
+function memoryRateLimit(key: string): Result {
   const now = Date.now();
   const entry = store.get(key);
 
   if (!entry || now >= entry.resetAt) {
-    // Start a new window
     store.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return { allowed: true };
+    return { allowed: true, retryAfterMs: 0 };
   }
 
   if (entry.count >= MAX_REQUESTS) {
@@ -44,5 +29,44 @@ export function checkRateLimit(
   }
 
   entry.count += 1;
-  return { allowed: true };
+  return { allowed: true, retryAfterMs: 0 };
+}
+
+let ratelimiter: Ratelimit | null = null;
+
+function getUpstash(): Ratelimit | null {
+  if (ratelimiter) return ratelimiter;
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) return null;
+
+  const redis = new Redis({ url, token });
+  ratelimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(MAX_REQUESTS, "60 s"),
+    analytics: true,
+  });
+
+  return ratelimiter;
+}
+
+export async function checkRateLimit(key: string): Promise<
+  { allowed: true } | { allowed: false; retryAfterMs: number }
+> {
+  const upstash = getUpstash();
+
+  if (!upstash) {
+    // On Vercel multi-instance this is not sufficient, but kept as a safe dev fallback.
+    const res = memoryRateLimit(key);
+    if (res.allowed) return { allowed: true };
+    return { allowed: false, retryAfterMs: res.retryAfterMs };
+  }
+
+  const res = await upstash.limit(key);
+  if (res.success) return { allowed: true };
+
+  const retryAfterMs = res.reset ? Math.max(0, res.reset - Date.now()) : WINDOW_MS;
+  return { allowed: false, retryAfterMs };
 }
